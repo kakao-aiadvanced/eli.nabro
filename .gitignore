@@ -319,6 +319,6 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 .idea
-Day2/Rag1-10/chroma/
-Day2/Rag1-10/db_chroma/
+Day2/training/chroma/
+Day2/training/db_chroma/
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,intellij
