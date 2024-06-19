@@ -1,8 +1,11 @@
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import PromptTemplate
-
-llm_llama3_json_temp0 = ChatOllama(model='llama3', format="json", temperature=0)
-llm_llama3_temp0 = ChatOllama(model='llama3', temperature=0)
+from langchain_openai import ChatOpenAI
+import streamlit as st
+# llm_llama3_json_temp0 = ChatOllama(model='llama3', format="json", temperature=0)
+# llm_llama3_temp0 = ChatOllama(model='llama3', temperature=0)
+llm_llama3_json_temp0 = ChatOpenAI(model="gpt-3.5-turbo-0125")
+llm_llama3_temp0 = ChatOpenAI(model="gpt-3.5-turbo-0125")
 
 retrieval_grader_prompt = PromptTemplate(
     template="""<|begin_of_text|><|start_header_id|>system<|end_header_id|> You are a grader assessing relevance
@@ -11,10 +14,10 @@ retrieval_grader_prompt = PromptTemplate(
     Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question. \n
     Provide the binary score as a JSON with a single key 'score' and no premable or explanation.
      <|eot_id|><|start_header_id|>user<|end_header_id|>
-    Here is the retrieved document: \n\n {document} \n\n
+    Here is the retrieved document: \n\n {documents} \n\n
     Here is the user question: {question} \n <|eot_id|><|start_header_id|>assistant<|end_header_id|>
     """,
-    input_variables=["question", "document"],
+    input_variables=["question", "documents"],
 )
 
 generate_answer_prompt = PromptTemplate(
@@ -22,9 +25,9 @@ generate_answer_prompt = PromptTemplate(
     Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know.
     Use three sentences maximum and keep the answer concise <|eot_id|><|start_header_id|>user<|end_header_id|>
     Question: {question}
-    Context: {context}
+    Context: {documents}
     Answer: <|eot_id|><|start_header_id|>assistant<|end_header_id|>""",
-    input_variables=["question", "document"],
+    input_variables=["question", "documents"],
 )
 
 router_prompt = PromptTemplate(

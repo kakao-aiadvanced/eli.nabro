@@ -8,7 +8,7 @@ from tavily import TavilyClient
 from langchain_llm_objects import retrieval_grader_prompt, llm_llama3_json_temp0, llm_llama3_temp0, \
     generate_answer_prompt, router_prompt, hallucination_grader_prompt
 from langchain_graph import GraphState, make_web_search_node, make_retriever_node, push_vectorstore, \
-    make_generator_node, make_route_question_edge, decide_to_generate, \
+    make_generator_node, make_route_question_edge, make_decide_to_generate, \
     make_grade_generation_v_documents_and_question_edge
 from typing import List
 
@@ -26,6 +26,7 @@ def generate_random_string(length: int) -> str:
 
 
 def execute(
+        answer_container,
         question: str,
         doc_urls: List[str],
         openai_api_key: str = OPENAI_API_KEY,
@@ -45,13 +46,13 @@ def execute(
 
     workflow = StateGraph(GraphState)
 
-    workflow.add_node("websearch", make_web_search_node(tavily))
-    workflow.add_node("retrieve", make_retriever_node(retriever))
-    workflow.add_node("grade_documents", make_generator_node(retrieval_grader))
-    workflow.add_node("generate", make_generator_node(generate_answer_chain))
+    workflow.add_node("websearch", make_web_search_node(tavily, answer_container))
+    workflow.add_node("retrieve", make_retriever_node(retriever, answer_container))
+    workflow.add_node("grade_documents", make_generator_node(retrieval_grader, answer_container))
+    workflow.add_node("generate", make_generator_node(generate_answer_chain, answer_container))
 
     workflow.set_conditional_entry_point(
-        make_route_question_edge(question_router),
+        make_route_question_edge(question_router, answer_container),
         {
             "websearch": "websearch",
             "vectorstore": "retrieve",
@@ -61,7 +62,7 @@ def execute(
     workflow.add_edge("retrieve", "grade_documents")
     workflow.add_conditional_edges(
         "grade_documents",
-        decide_to_generate,
+        make_decide_to_generate(answer_container),
         {
             "websearch": "websearch",
             "generate": "generate",
@@ -70,7 +71,7 @@ def execute(
     workflow.add_edge("websearch", "generate")
     workflow.add_conditional_edges(
         "generate",
-        make_grade_generation_v_documents_and_question_edge(hallucination_grader),
+        make_grade_generation_v_documents_and_question_edge(hallucination_grader, answer_container),
         {
             "not supported": "generate",
             "useful": "__end__",
@@ -84,7 +85,9 @@ def execute(
     result = ""
     for output in app.stream(inputs):
         for key, value in output.items():
-            print(f"Finished running: {key}:")
+            answer_container.write(f"Finished running: {key}:")
+            context = answer_container.popover(f"  {key} context")
+            context.write(f"  {value}")
             if "generation" in value:
                 result = value["generation"]
 

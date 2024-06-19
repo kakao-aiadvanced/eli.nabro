@@ -39,8 +39,9 @@ def push_vectorstore(doc_urls: List[str], collection_name: str) -> VectorStoreRe
     return vectorstore.as_retriever()
 
 
-def make_retriever_node(retriever: VectorStoreRetriever) -> Callable[[any], dict]:
+def make_retriever_node(retriever: VectorStoreRetriever, answer_container) -> Callable[[any], dict]:
     def retrieve(state):
+        # answer_container.write("---RETRIEVE---")
         question = state["question"]
 
         # Retrieval
@@ -50,20 +51,21 @@ def make_retriever_node(retriever: VectorStoreRetriever) -> Callable[[any], dict
     return retrieve
 
 
-def make_generator_node(rag_chain: RunnableSerializable) -> Callable[[any], dict]:
+def make_generator_node(rag_chain: RunnableSerializable, answer_container) -> Callable[[any], dict]:
     def generate(state):
-        print("---GENERATE---")
+        # answer_container.write("---GENERATE---")
         question = state["question"]
         documents = state["documents"]
 
-        generation = rag_chain.invoke({"context": documents, "question": question})
+        generation = rag_chain.invoke({"documents": documents, "question": question})
         return {"documents": documents, "question": question, "generation": generation}
 
     return generate
 
 
-def make_grade_documents_node(retrieval_grader: RunnableSerializable) -> Callable[[any], dict]:
+def make_grade_documents_node(retrieval_grader: RunnableSerializable, answer_container) -> Callable[[any], dict]:
     def grade_documents(state):
+        # answer_container.write("---CHECK DOCUMENT RELEVANCE TO QUESTION---")
         question = state["question"]
         documents = state["documents"]
 
@@ -76,9 +78,11 @@ def make_grade_documents_node(retrieval_grader: RunnableSerializable) -> Callabl
             )
             grade = score["score"]
             if grade.lower() == "yes":
+                # answer_container.write("---GRADE: DOCUMENT RELEVANT---")
                 filtered_docs.append(d)
 
             else:
+                # answer_container.write("---GRADE: DOCUMENT NOT RELEVANT---")
                 web_search = "Yes"
                 continue
         return {"documents": filtered_docs, "question": question, "web_search": web_search}
@@ -86,8 +90,9 @@ def make_grade_documents_node(retrieval_grader: RunnableSerializable) -> Callabl
     return grade_documents
 
 
-def make_web_search_node(tavily: TavilyClient) -> Callable[[any], dict]:
+def make_web_search_node(tavily: TavilyClient, answer_container) -> Callable[[any], dict]:
     def web_search(state):
+        # answer_container.write("---WEB SEARCH---")
         question = state["question"]
         documents = state["documents"]
 
@@ -108,10 +113,12 @@ def make_web_search_node(tavily: TavilyClient) -> Callable[[any], dict]:
 ### Edges
 
 
-def make_route_question_edge(question_router: RunnableSerializable) -> Callable[[any], str]:
+def make_route_question_edge(question_router: RunnableSerializable, answer_container) -> Callable[[any], str]:
     def route_question(state):
+        # answer_container.write("---ROUTE QUESTION---")
         question = state["question"]
         source = question_router.invoke({"question": question})
+
         if source["datasource"] == "web_search":
             return "websearch"
         elif source["datasource"] == "vectorstore":
@@ -120,20 +127,31 @@ def make_route_question_edge(question_router: RunnableSerializable) -> Callable[
     return route_question
 
 
-def decide_to_generate(state) -> str:
-    web_search = state["web_search"]
+def make_decide_to_generate(answer_container) -> Callable[[any], str]:
+    def decide_to_generate(state):
+        # answer_container.write("---ASSESS GRADED DOCUMENTS---")
+        if "web_search" in state:
+            web_search = state["web_search"]
+        else:
+            web_search = "No"
 
-    if web_search == "Yes":
-        return "websearch"
-    else:
-        return "generate"
+        if web_search == "Yes":
+            # answer_container.write("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, INCLUDE WEB SEARCH---")
+            return "websearch"
+        else:
+            # answer_container.write("---DECISION: GENERATE---")
+            return "generate"
+
+    return decide_to_generate
 
 
 def make_grade_generation_v_documents_and_question_edge(
         hallucination_grader: RunnableSerializable,
-        # answer_grader: RunnableSerializable
+        # answer_grader: RunnableSerializable,
+        answer_container
 ):
     def grade_generation_v_documents_and_question(state):
+        # answer_container.write("---CHECK HALLUCINATIONS---")
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
@@ -145,6 +163,7 @@ def make_grade_generation_v_documents_and_question_edge(
 
         # Check hallucination
         if grade == "yes":
+            # answer_container.write("---DECISION: GENERATION ADDRESSES QUESTION---")
             return "useful"
             # score = answer_grader.invoke({"question": question, "generation": generation})
             # grade = score["score"]
@@ -153,6 +172,7 @@ def make_grade_generation_v_documents_and_question_edge(
             # else:
             #     return "not useful"
         else:
+            # answer_container.write("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
             return "not supported"
 
     return grade_generation_v_documents_and_question

@@ -20,6 +20,8 @@ st.markdown("""
 st.title(':hammer_and_pick: KAKAO - Ai Advanced 프로젝트 :gear: :shopping_trolley: :firecracker: :100:')
 
 question_col, answer_col = st.columns([0.50, 0.50])
+answer_container = answer_col.container(height=500)
+
 openai_api_key = question_col.text_input("Open Ai API key", type="password", value = os.environ.get("OPENAI_API_KEY"))
 langchain_api_key = question_col.text_input("Langchain API key", type="password", value = os.environ.get("LANGCHAIN_API_KEY"))
 tavily_api_key = question_col.text_input("TAVILY_API_KEY API key", type="password", value = os.environ.get("TAVILY_API_KEY"))
@@ -30,11 +32,11 @@ https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/
 """.strip())
 doc_urls = [line.strip() for line in doc_urls_text.split('\n')]
 
-user_question = question_col.text_input("User Question")
+user_question = question_col.text_input("User Question", value="What are the types of agent memory?")
 
 if user_question:
-    result = execute(user_question, doc_urls, openai_api_key, langchain_api_key, tavily_api_key)
-    print(result)
-    answer_col.write(result)
+    result = execute(answer_container, user_question, doc_urls, openai_api_key, langchain_api_key, tavily_api_key)
+    answer_container.write("**Answer**")
+    answer_container.write(result)
 
 
