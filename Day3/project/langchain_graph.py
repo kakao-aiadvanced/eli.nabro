@@ -130,10 +130,7 @@ def make_route_question_edge(question_router: RunnableSerializable, answer_conta
 def make_decide_to_generate(answer_container) -> Callable[[any], str]:
     def decide_to_generate(state):
         # answer_container.write("---ASSESS GRADED DOCUMENTS---")
-        if "web_search" in state:
-            web_search = state["web_search"]
-        else:
-            web_search = "No"
+        web_search = state["generation"]
 
         if web_search == "Yes":
             # answer_container.write("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT TO QUESTION, INCLUDE WEB SEARCH---")

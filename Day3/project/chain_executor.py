@@ -60,6 +60,8 @@ def execute(
     )
 
     workflow.add_edge("retrieve", "grade_documents")
+    workflow.add_edge("websearch", "grade_documents")
+
     workflow.add_conditional_edges(
         "grade_documents",
         make_decide_to_generate(answer_container),
@@ -68,7 +70,7 @@ def execute(
             "generate": "generate",
         },
     )
-    workflow.add_edge("websearch", "generate")
+
     workflow.add_conditional_edges(
         "generate",
         make_grade_generation_v_documents_and_question_edge(hallucination_grader, answer_container),
