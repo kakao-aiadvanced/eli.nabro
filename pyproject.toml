@@ -41,6 +41,7 @@ langgraph = "^0.0.69"
 tavily-python = "^0.3.3"
 gpt4all = "^2.7.0"
 arxiv = "^2.1.0"
+streamlit = "^1.35.0"
 
 
 [build-system]
