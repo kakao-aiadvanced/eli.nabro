@@ -30,6 +30,7 @@ def push_vectorstore(doc_urls: List[str], collection_name: str) -> VectorStoreRe
     doc_splits = text_splitter.split_documents(docs_list)
 
     vectorstore = Chroma.from_documents(
+        persist_directory="./db_chroma/chroma_db",
         documents=doc_splits,
         collection_name=collection_name,
         embedding=GPT4AllEmbeddings(model_name="all-MiniLM-L6-v2.gguf2.f16.gguf"),
@@ -119,25 +120,20 @@ def make_route_question_edge(question_router: RunnableSerializable) -> Callable[
     return route_question
 
 
-def make_decide_to_generate_edge() -> Callable[[any], str]:
-    def decide_to_generate(state):
-        web_search = state["web_search"]
+def decide_to_generate(state) -> str:
+    web_search = state["web_search"]
 
-        if web_search == "Yes":
-            return "websearch"
-        else:
-            return "generate"
-
-    return decide_to_generate
+    if web_search == "Yes":
+        return "websearch"
+    else:
+        return "generate"
 
 
 def make_grade_generation_v_documents_and_question_edge(
         hallucination_grader: RunnableSerializable,
-        answer_grader: RunnableSerializable
+        # answer_grader: RunnableSerializable
 ):
     def grade_generation_v_documents_and_question(state):
-
-        print("---CHECK HALLUCINATIONS---")
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
@@ -149,19 +145,14 @@ def make_grade_generation_v_documents_and_question_edge(
 
         # Check hallucination
         if grade == "yes":
-            print("---DECISION: GENERATION IS GROUNDED IN DOCUMENTS---")
-            # Check question-answering
-            print("---GRADE GENERATION vs QUESTION---")
-            score = answer_grader.invoke({"question": question, "generation": generation})
-            grade = score["score"]
-            if grade == "yes":
-                print("---DECISION: GENERATION ADDRESSES QUESTION---")
-                return "useful"
-            else:
-                print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION---")
-                return "not useful"
+            return "useful"
+            # score = answer_grader.invoke({"question": question, "generation": generation})
+            # grade = score["score"]
+            # if grade == "yes":
+            #     return "useful"
+            # else:
+            #     return "not useful"
         else:
-            pprint("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
             return "not supported"
 
     return grade_generation_v_documents_and_question

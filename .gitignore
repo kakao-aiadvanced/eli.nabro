@@ -322,4 +322,5 @@ pyrightconfig.json
 Day2/training/chroma/
 Day2/training/db_chroma/
 Day2/rag1-10/db_chroma
+db_chroma/*
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,intellij
