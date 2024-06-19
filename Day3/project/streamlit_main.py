@@ -35,8 +35,10 @@ doc_urls = [line.strip() for line in doc_urls_text.split('\n')]
 user_question = question_col.text_input("User Question", value="What are the types of agent memory?")
 
 if user_question:
-    result = execute(answer_container, user_question, doc_urls, openai_api_key, langchain_api_key, tavily_api_key)
+    result, urls = execute(answer_container, user_question, doc_urls, openai_api_key, langchain_api_key, tavily_api_key)
     answer_container.write("**Answer**")
     answer_container.write(result)
+    answer_container.write("**출처**")
+    answer_container.write(urls)
 
 

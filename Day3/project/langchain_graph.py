@@ -13,6 +13,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import GPT4AllEmbeddings
 
 
+
 class GraphState(TypedDict):
     question: str
     generation: str
@@ -46,6 +47,7 @@ def make_retriever_node(retriever: VectorStoreRetriever, answer_container) -> Ca
 
         # Retrieval
         documents = retriever.invoke(question)
+        print(documents)
         return {"documents": documents, "question": question}
 
     return retrieve
@@ -58,7 +60,9 @@ def make_generator_node(rag_chain: RunnableSerializable, answer_container) -> Ca
         documents = state["documents"]
 
         generation = rag_chain.invoke({"documents": documents, "question": question})
-        return {"documents": documents, "question": question, "generation": generation}
+        urls = [f"{d.metadata['title']} : {d.metadata['source']}" for d in documents]
+        print(urls)
+        return {"documents": documents, "question": question, "generation": generation, "source": urls}
 
     return generate
 
@@ -98,9 +102,12 @@ def make_web_search_node(tavily: TavilyClient, answer_container) -> Callable[[an
 
         # Web search
         docs = tavily.search(query=question)['results']
+        print(docs)
 
         web_results = "\n".join([d["content"] for d in docs])
-        web_results = Document(page_content=web_results)
+        url = "".join([d["url"] for d in docs])
+        title = "".join([d["title"] for d in docs])
+        web_results = Document(page_content=web_results, metadata={"source": url, "title": title})
         if documents is not None:
             documents.append(web_results)
         else:
@@ -127,6 +134,14 @@ def make_route_question_edge(question_router: RunnableSerializable, answer_conta
     return route_question
 
 
+def make_search_engine_node(search_engine_chooser: RunnableSerializable) -> Callable[[any], dict]:
+    def search_engine(state):
+        question = state["question"]
+        engine = search_engine_chooser.invoke({"question": question})
+        return {"question": question, "engine": engine}
+
+    return search_engine
+
 def make_decide_to_generate(answer_container) -> Callable[[any], str]:
     def decide_to_generate(state):
         # answer_container.write("---ASSESS GRADED DOCUMENTS---")
@@ -141,6 +156,14 @@ def make_decide_to_generate(answer_container) -> Callable[[any], str]:
 
     return decide_to_generate
 
+def decide_engine_edge(state):
+    engine = state["engine"]
+
+    if engine == "arxiv":
+        return "arxiv"
+    else:
+        return "tavily"
+
 
 def make_grade_generation_v_documents_and_question_edge(
         hallucination_grader: RunnableSerializable,
@@ -152,6 +175,7 @@ def make_grade_generation_v_documents_and_question_edge(
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
+        source = state["source"]
 
         score = hallucination_grader.invoke(
             {"documents": documents, "generation": generation}
@@ -173,3 +197,8 @@ def make_grade_generation_v_documents_and_question_edge(
             return "not supported"
 
     return grade_generation_v_documents_and_question
+
+def academic_checker(state):
+    question = state["question"]
+
+    agent_executor.invoke({"input": question})

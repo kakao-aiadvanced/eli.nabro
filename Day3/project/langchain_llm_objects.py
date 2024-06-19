@@ -1,3 +1,6 @@
+from langchain import hub
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain_community.agent_toolkits.load_tools import load_tools
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
@@ -52,3 +55,21 @@ hallucination_grader_prompt = PromptTemplate(
     Here is the answer: {generation}  <|eot_id|><|start_header_id|>assistant<|end_header_id|>""",
     input_variables=["generation", "documents"],
 )
+
+search_engine_prompt = PromptTemplate(
+    template="""<|begin_of_text|><|start_header_id|>system<|end_header_id|> system You are an intelligent 
+    assistant tasked with determining whether a user's query should be directed to the arxiv platform 
+    for specific academic papers or to the tavily platform for general research topics. 
+    Provide a binary answer as a JSON with a single key 'platform' and the value either 'arxiv' or 'tavily' 
+    based on the nature of the user's query. No explanation is needed.
+    <|eot_id|><|start_header_id|>user<|end_header_id|>
+    User's query: 
+    \n ------- \n
+    {question}
+    \n ------- \n
+    Here is the answer: <|eot_id|><|start_header_id|>assistant<|end_header_id|>
+    """,
+    input_variables=["question"],
+)
+
+
